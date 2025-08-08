@@ -1,0 +1,161 @@
+!pip install qrcode[pil] ipywidgets
+from IPython.display import display, clear_output, Image
+import ipywidgets as widgets
+import qrcode
+import io
+
+# Menu 
+menu = {
+    'beverages': {
+        'hot': {'lemon tea': 70, 'chai': 60},
+        'cold': {'water': 30, 'cold coffee': 80, 'iced tea': 100}
+    },
+    'starters': {
+        'paneer tikka': 300, 'spring roll': 270, 'afghani chaap': 280,
+        'chilly potato': 260, 'pizza': 360, 'pasta': 180,
+        'burger': 100, 'chowmein': 190
+    },
+    'salads': {'salad': 150, 'fruit salad': 230},
+    'main course': {
+        'daal makhani': 320, 'daal tadka': 300, 'palak paneer': 350,
+        'shahi paneer': 360, 'malai kofta': 290, 'dum aloo': 300
+    },
+    'breads': {
+        'naan': 60, 'roti': 40, 'butter naan': 70,
+        'garlic naan': 80, 'kulcha': 80, 'rumali roti': 60
+    }
+}
+
+order_total = 0
+order_list = []
+
+category_dd = widgets.Dropdown(
+    options=['Select'] + list(menu.keys()),
+    description='Category:',
+    style={'description_width': 'initial'}
+)
+
+sub_category_dd = widgets.Dropdown(
+    options=['Select'],
+    description='Sub-Category:',
+    style={'description_width': 'initial'}
+)
+
+item_dd = widgets.Dropdown(
+    options=['Select'],
+    description='Item:',
+    style={'description_width': 'initial'}
+)
+
+add_button = widgets.Button(description="Add to Order", button_style='success')
+output_area = widgets.Output()
+
+def update_sub_category(change):
+    category = category_dd.value
+    if category == 'Select':
+        sub_category_dd.options = ['Select']
+        item_dd.options = ['Select']
+        return
+    if isinstance(menu[category], dict):
+        sub_options = menu[category]
+        if all(isinstance(v, dict) for v in sub_options.values()):
+            sub_category_dd.options = ['Select'] + list(sub_options.keys())
+        else:
+            sub_category_dd.options = ['Select', 'main']
+    else:
+        sub_category_dd.options = ['Select']
+
+def update_items(change):
+    category = category_dd.value
+    sub_category = sub_category_dd.value
+    if category == 'Select' or sub_category == 'Select':
+        item_dd.options = ['Select']
+        return
+    try:
+        if sub_category == 'main':
+            item_list = list(menu[category].keys())
+            item_dd.options = ['Select'] + item_list
+        else:
+            item_list = list(menu[category][sub_category].keys())
+            item_dd.options = ['Select'] + item_list
+    except:
+        item_dd.options = ['Select']
+
+def add_to_order(b):
+    global order_total
+    category = category_dd.value
+    sub_category = sub_category_dd.value
+    item = item_dd.value
+
+    if category == 'Select' or sub_category == 'Select' or item == 'Select':
+        with output_area:
+            clear_output()
+            print("Please select valid options.")
+        return
+
+    try:
+        price = menu[category][sub_category][item]
+    except:
+        price = menu[category][item]
+
+    order_total += price
+    order_list.append(f"{item.title()} - ₹{price}")
+
+    with output_area:
+        clear_output()
+        print("Item added successfully!")
+        print("Your Order So Far:")
+        for o in order_list:
+            print(" -", o)
+        print(f"Total: ₹{order_total}")
+
+payment_dd = widgets.Dropdown(
+    options=["Select", "Cash", "UPI"],
+    description="Payment Method:"
+)
+
+generate_bill = widgets.Button(description="Generate Bill", button_style='info')
+final_output = widgets.Output()
+
+
+def bill_and_payment(b):
+    with final_output:
+        clear_output()
+        print("------ Final Bill ------")
+        for o in order_list:
+            print(" -", o)
+        print(f"\nTotal to Pay: ₹{order_total}")
+        method = payment_dd.value
+        if method == "Cash":
+            print("\nYou selected: Cash")
+            print("Please pay at the counter.")
+        elif method == "UPI":
+            print("\nYou selected: UPI")
+            print("Scan the QR code below to pay:")
+
+            upi_id = "sahilrupani2@oksbi"
+            restaurant_name = "Python Restaurant"
+            upi_url = f"upi://pay?pa={upi_id}&pn={restaurant_name}&am={order_total}&cu=INR"
+
+            img = qrcode.make(upi_url)
+            buf = io.BytesIO()
+            img.save(buf)
+            buf.seek(0)
+            display(Image(data=buf.read()))
+
+            display(widgets.HTML(value="<b>Thank you for ordering through Python Restaurant</b>"))
+
+        else:
+            print("Please select a valid payment method.")
+
+# Widget Events
+category_dd.observe(update_sub_category, names='value')
+sub_category_dd.observe(update_items, names='value')
+add_button.on_click(add_to_order)
+generate_bill.on_click(bill_and_payment)
+
+# Layout Display
+display(widgets.HTML(value="<h2>🍽️ Welcome to Python Restaurant</h2>"))
+display(category_dd, sub_category_dd, item_dd, add_button, output_area)
+display(widgets.HTML(value="<hr><b>Select Payment Method:</b>"))
+display(payment_dd, generate_bill, final_output)
