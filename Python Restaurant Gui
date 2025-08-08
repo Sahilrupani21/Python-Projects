@@ -1,0 +1,234 @@
+import tkinter as tk
+from tkinter import messagebox
+import qrcode
+from PIL import Image, ImageTk
+import threading
+import time
+
+# Menu
+menu = {
+    'Beverages': {
+        'Hot': {'Lemon Tea': 70, 'Chai': 60},
+        'Cold': {'Water': 30, 'Cold Coffee': 80, 'Iced Tea': 100}
+    },
+    'Starters': {
+        'Paneer Tikka': 300, 'Spring Roll': 270, 'Afghani Chaap': 280,
+        'Chilly Potato': 260, 'Pizza': 360, 'Pasta': 180,
+        'Burger': 100, 'Chowmein': 190
+    },
+    'Salads': {'Salad': 150, 'Fruit Salad': 230},
+    'Main Course': {
+        'Daal Makhani': 320, 'Daal Tadka': 300, 'Palak Paneer': 350,
+        'Shahi Paneer': 360, 'Malai Kofta': 290, 'Dum Aloo': 300
+    },
+    'Breads': {
+        'Naan': 60, 'Roti': 40, 'Butter Naan': 70,
+        'Garlic Naan': 80, 'Kulcha': 80, 'Rumali Roti': 60
+    }
+}
+
+order = {}
+
+# --- Color Palette ---
+BG_COLOR = "#fff8f0"
+PRIMARY = "#4b0082"
+SUCCESS = "#27ae60"
+DANGER = "#e74c3c"
+WARNING = "#f39c12"
+INFO = "#3498db"
+TEXT_COLOR = "#2c3e50"
+
+root = tk.Tk()
+root.title("Python Restaurant")
+root.geometry("950x650")
+root.configure(bg=BG_COLOR)
+
+tk.Label(root, text="🍽 Welcome to Python Restaurant", font=("Helvetica", 22, "bold"),
+         bg=PRIMARY, fg="white", pady=15).pack(fill=tk.X)
+
+menu_frame = tk.Frame(root, bg=BG_COLOR)
+menu_frame.pack(pady=10)
+
+tk.Label(menu_frame, text="Select Category:", font=("Arial", 12), bg=BG_COLOR, fg=TEXT_COLOR).grid(row=0, column=0, padx=10)
+category_var = tk.StringVar()
+category_menu = tk.OptionMenu(menu_frame, category_var, *menu.keys())
+category_menu.config(width=20)
+category_menu.grid(row=0, column=1)
+
+tk.Label(menu_frame, text="Select Sub-Category / Item:", font=("Arial", 12), bg=BG_COLOR, fg=TEXT_COLOR).grid(row=1, column=0, padx=10)
+item_var = tk.StringVar()
+item_menu = tk.OptionMenu(menu_frame, item_var, "")
+item_menu.grid(row=1, column=1)
+
+qty_var = tk.IntVar(value=1)
+qty_frame = tk.Frame(menu_frame, bg=BG_COLOR)
+qty_frame.grid(row=2, column=1)
+tk.Label(qty_frame, text="Qty:", bg=BG_COLOR).pack(side=tk.LEFT)
+
+def increase_qty(): qty_var.set(qty_var.get() + 1)
+def decrease_qty(): 
+    if qty_var.get() > 1:
+        qty_var.set(qty_var.get() - 1)
+
+tk.Button(qty_frame, text="-", command=decrease_qty, width=2, bg=DANGER, fg="white").pack(side=tk.LEFT)
+tk.Label(qty_frame, textvariable=qty_var, width=3, bg="white").pack(side=tk.LEFT)
+tk.Button(qty_frame, text="+", command=increase_qty, width=2, bg=SUCCESS, fg="white").pack(side=tk.LEFT)
+
+def update_item_menu(*args):
+    sub_items = {}
+    cat = category_var.get()
+    if cat in menu:
+        if isinstance(menu[cat], dict):
+            for k, v in menu[cat].items():
+                if isinstance(v, dict):
+                    for item, price in v.items():
+                        sub_items[f"{k} - {item} (₹{price})"] = (k, item, price)
+                else:
+                    sub_items[f"{k} (₹{v})"] = (None, k, v)
+    item_menu['menu'].delete(0, 'end')
+    for key in sub_items:
+        item_menu['menu'].add_command(label=key, command=lambda k=key: item_var.set(k))
+
+category_var.trace("w", update_item_menu)
+
+order_list = tk.Listbox(root, width=80, height=10, font=("Arial", 11), bg="white", fg=TEXT_COLOR)
+order_list.pack(pady=10)
+
+def refresh_order_list():
+    order_list.delete(0, tk.END)
+    for i, (item, details) in enumerate(order.items(), 1):
+        order_list.insert(tk.END, f"{i}. {item} x {details['qty']} = ₹{details['qty'] * details['price']}")
+
+def add_item():
+    try:
+        text = item_var.get()
+        if "(" in text:
+            item_name = text.split(" (")[0].split(" - ")[-1]
+            price = int(text.split("₹")[1].split(")")[0])
+            qty = qty_var.get()
+            if item_name in order:
+                order[item_name]['qty'] += qty
+            else:
+                order[item_name] = {'qty': qty, 'price': price}
+            refresh_order_list()
+    except:
+        pass
+
+def remove_selected():
+    selected = order_list.curselection()
+    if selected:
+        index = selected[0]
+        key = list(order.keys())[index]
+        del order[key]
+        refresh_order_list()
+
+def cancel_order():
+    order.clear()
+    refresh_order_list()
+
+def show_final_thank_you(method):
+    thank_win = tk.Toplevel(root)
+    thank_win.title("Thank You")
+    thank_win.geometry("400x200")
+    thank_win.config(bg=BG_COLOR)
+
+    total = sum(d['qty'] * d['price'] for d in order.values())
+
+    tk.Label(thank_win, text="🎉 Order Done!", font=("Arial", 18, "bold"), bg=BG_COLOR, fg=SUCCESS).pack(pady=10)
+    tk.Label(thank_win, text=f"Payment Mode: {method}", font=("Arial", 12), bg=BG_COLOR).pack()
+    tk.Label(thank_win, text=f"Total Paid: ₹{total}", font=("Arial", 12), bg=BG_COLOR).pack(pady=5)
+
+    tk.Button(thank_win, text="Close", command=thank_win.destroy, bg=PRIMARY, fg="white").pack(pady=15)
+    cancel_order()
+
+def handle_cash_payment():
+    cash_win = tk.Toplevel(root)
+    cash_win.title("Cash Payment")
+    cash_win.geometry("350x250")
+    cash_win.config(bg=BG_COLOR)
+
+    tk.Label(cash_win, text="Waiting for Cash Payment...", font=("Arial", 14), bg=BG_COLOR, fg=TEXT_COLOR).pack(pady=10)
+    timer_var = tk.StringVar(value="30")
+    status_var = tk.StringVar(value="")
+
+    def countdown():
+        for i in range(30, 0, -1):
+            if status_var.get(): return
+            timer_var.set(str(i))
+            time.sleep(1)
+        if not status_var.get():
+            status_var.set("Order Done")
+            show_final_thank_you("Cash")
+
+    def cancel_payment():
+        status_var.set("Order Cancelled")
+        tk.Label(cash_win, text="Order Cancelled", fg=DANGER, bg=BG_COLOR, font=("Arial", 12, "bold")).pack()
+
+    tk.Label(cash_win, text="Cancel within:", bg=BG_COLOR).pack()
+    tk.Label(cash_win, textvariable=timer_var, font=("Arial", 16), fg=WARNING, bg=BG_COLOR).pack()
+    tk.Button(cash_win, text="Cancel", command=cancel_payment, bg=DANGER, fg="white").pack(pady=10)
+
+    threading.Thread(target=countdown, daemon=True).start()
+
+def show_qr_payment():
+    total = sum(d['qty'] * d['price'] for d in order.values())
+    upi_url = f"upi://pay?pa=sahilrupani2@oksbi&pn=Python Restaurant&am={total}&cu=INR"
+    qr_img = qrcode.make(upi_url)
+    qr_img.save("upi_qr.png")
+
+    qr_win = tk.Toplevel(root)
+    qr_win.title("UPI Payment")
+    qr_win.geometry("350x400")
+    qr_win.config(bg=BG_COLOR)
+
+    img = Image.open("upi_qr.png").resize((200, 200))
+    img = ImageTk.PhotoImage(img)
+    tk.Label(qr_win, text="Scan & Pay via UPI", font=("Arial", 14, "bold"), bg=BG_COLOR).pack(pady=5)
+    tk.Label(qr_win, image=img, bg=BG_COLOR).pack()
+    qr_win.img = img
+
+    timer_var = tk.StringVar(value="60")
+    status_var = tk.StringVar(value="")
+
+    def countdown():
+        for i in range(60, 0, -1):
+            if status_var.get(): return
+            timer_var.set(str(i))
+            time.sleep(1)
+        if not status_var.get():
+            tk.Label(qr_win, text="Order Cancelled", fg=DANGER, bg=BG_COLOR, font=("Arial", 12, "bold")).pack()
+
+    def confirm_payment():
+        status_var.set("Paid")
+        qr_win.destroy()
+        show_final_thank_you("UPI")
+
+    tk.Label(qr_win, text="Auto confirm in:", bg=BG_COLOR).pack()
+    tk.Label(qr_win, textvariable=timer_var, font=("Arial", 14), fg=INFO, bg=BG_COLOR).pack()
+    tk.Button(qr_win, text="I've Paid", command=confirm_payment, bg=SUCCESS, fg="white").pack(pady=15)
+
+    threading.Thread(target=countdown, daemon=True).start()
+
+def finish_and_pay():
+    if not order:
+        return
+    pay_win = tk.Toplevel(root)
+    pay_win.title("Choose Payment")
+    pay_win.geometry("300x160")
+    pay_win.config(bg=BG_COLOR)
+
+    tk.Label(pay_win, text="Select Payment Mode", font=("Arial", 14), bg=BG_COLOR, fg=TEXT_COLOR).pack(pady=10)
+    tk.Button(pay_win, text="Pay with Cash", command=lambda: [pay_win.destroy(), handle_cash_payment()],
+              bg=PRIMARY, fg="white", width=20).pack(pady=5)
+    tk.Button(pay_win, text="Pay via UPI", command=lambda: [pay_win.destroy(), show_qr_payment()],
+              bg=INFO, fg="white", width=20).pack()
+
+button_frame = tk.Frame(root, bg=BG_COLOR)
+button_frame.pack()
+
+tk.Button(button_frame, text="Add Item", command=add_item, bg=SUCCESS, fg="white", width=12).grid(row=0, column=0, padx=5)
+tk.Button(button_frame, text="Remove Selected", command=remove_selected, bg=DANGER, fg="white", width=15).grid(row=0, column=1, padx=5)
+tk.Button(button_frame, text="Cancel Order", command=cancel_order, bg=WARNING, fg="white", width=12).grid(row=0, column=2, padx=5)
+tk.Button(button_frame, text="Finish and Pay", command=finish_and_pay, bg=PRIMARY, fg="white", width=15).grid(row=0, column=3, padx=5)
+
+root.mainloop()
