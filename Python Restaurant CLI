@@ -1,0 +1,82 @@
+!pip install QRCode
+
+import qrcode
+
+# Menu dictionary
+menu={
+    'beverages': {
+        'hot': {'lemon tea': 70, 'chai': 60},
+        'cold': {'water': 30, 'cold coffee': 80, 'iced tea': 100}
+    },
+    'starters': {
+        'paneer tikka': 300, 'spring roll': 270, 'afghani chaap': 280,
+        'chilly potato': 260, 'pizza': 360, 'pasta': 180,
+        'burger': 100, 'chowmein': 190
+    },
+    'salads': {'salad': 150, 'fruit salad': 230},
+    'main course': {
+        'daal makhani': 320, 'daal tadka': 300, 'palak paneer': 350,
+        'shahi paneer': 360, 'malai kofta': 290, 'dum aloo': 300
+    },
+    'breads': {
+        'naan': 60, 'roti': 40, 'butter naan': 70,
+        'garlic naan': 80, 'kulcha': 80, 'rumali roti': 60
+    }
+}
+
+
+print("\t\tWELCOME TO PYTHON RESTAURANT")
+print("-----------------------------------------------------------------\n")
+print("\t\t\tFOOD MENU")
+print("-----------------------------------------------------------------")
+print("""\t\t\tBEVERAGES\n\t\t\tHOT\nLemon Tea: 70 Rs\nChai: 60 Rs\n\t\t\tCOLD\nWater: 30 Rs\nCold Coffee: 80 Rs\nIced Tea: 100 Rs\n
+\t\t\tSTARTERS\nPaneer Tikka: 300 Rs\nSpring Roll: 270 Rs\nAfghani Chaap: 280 Rs\nChilly Potato: 260 Rs\nPizza: 360 Rs
+Pasta: 180 Rs\nBurger: 100 Rs\nChowmein: 190 Rs\n\t\t\tSALADS\nSalad: 150 Rs\nFruit Salad: 230 Rs\n
+\t\t\tMAIN COURSE\nDaal Makhani: 320 Rs\nDaal Tadka: 300 Rs\nPalak Paneer: 350 Rs\nShahi Paneer: 360 Rs\nMalai Kofta: 290 Rs\nDum Aloo: 300 Rs\n
+\t\t\tBREADS\nNaan: 60 Rs\nRoti: 40 Rs\nButter Naan: 70 Rs\nGarlic Naan: 80 Rs\nKulcha: 80 Rs\nRumali Roti: 60 Rs\n
+""")
+
+order_total = 0
+
+while True:
+    category = input("Enter the category (e.g., BEVERAGES, STARTERS, etc.): ").lower()
+    if category in menu:
+        sub_category = input(f"Enter the sub-category under {category} (e.g., HOT, COLD, etc.): ").lower()
+        if sub_category in menu[category]:
+            item = input("Enter the item you want to order: ").title()
+            if item.lower() in menu[category][sub_category]:
+                order_total += menu[category][sub_category][item.lower()]
+                print(f"Your item {item} has been added to your order.")
+            else:
+                print("Sorry, we don't have that item on the menu.")
+        else:
+            print("Sorry, we don't have that sub-category on the menu.")
+    else:
+        print("Sorry, we don't have that category on the menu.")
+
+    another_order = input("Do you want to add another item? (yes/no): ").lower()
+    if another_order != 'yes':
+        break
+
+print(f"\nThe total amount to pay is {order_total} Rs")
+print("-----------------------------------------------------------------\n")
+
+billing = input("How would you like to pay? (Cash/UPI): ").lower()
+if billing == "cash":
+    print(f"You chose Cash. Your bill is ₹{order_total}.")
+    print("-----------------------------------------------------------------\n")
+    print("Thank you for visiting Python Restaurant")
+elif billing == "upi":
+    print(f"You chose UPI. Your QR code is being generated. Your bill is ₹{order_total}.")
+    print("-----------------------------------------------------------------\n")
+    print("Thank you for visiting Python Restaurant")
+
+    upi_id = "sahilrupani2@oksbi"
+    restaurant_name = "Python Restaurant"
+    google_pay_url = f"upi://pay?pa={upi_id}&pn={restaurant_name}&am={order_total}&cu=INR"
+
+    google_pay_qr = qrcode.make(google_pay_url)
+    google_pay_qr.save("google_pay.png")
+
+else:
+    print("Invalid payment method. Please choose either Cash or UPI.")
